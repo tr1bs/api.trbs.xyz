@@ -85,6 +85,19 @@ def protected():
     return jsonify(logged_in_as=current_user), 200
 
 
+@app.route("/user_settings", methods=['GET'])
+@jwt_required()
+def user_settings():
+    current_user = get_jwt_identity()
+    if current_user:
+        user = User.query.filter_by(id=current_user).one_or_none()
+        settings = user.settings
+        return jsonify(settings=settings), 200
+    else:
+        return jsonify("youre not logged in"), 401
+
+
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
 	return jsonify(access_token=access_token)	
