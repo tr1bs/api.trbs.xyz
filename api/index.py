@@ -70,7 +70,7 @@ def login():
     
     # Notice that we are passing in the actual sqlalchemy user object here
     access_token = create_access_token(identity=user)
-    return jsonify(access_token=access_token)
+    return jsonify(access_token=access_token, username=user.username)
 
 
 @app.route("/is_logged_in", methods=["GET"])
