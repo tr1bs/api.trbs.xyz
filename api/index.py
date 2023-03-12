@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, request
-from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required, JWTManager
+from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required, JWTManager, verify_jwt_in_request, get_jwt
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -37,6 +37,7 @@ class User(db.Model):
 # identity when creating JWTs and converts it to a JSON serializable format.
 @jwt.user_identity_loader
 def user_identity_lookup(user):
+    print(user)
     return user.id
 
 
@@ -46,6 +47,8 @@ def user_identity_lookup(user):
 # if the user has been deleted from the database).
 @jwt.user_lookup_loader
 def user_lookup_callback(_jwt_header, jwt_data):
+    print(_jwt_header)
+    print(jwt_data)
     identity = jwt_data["sub"]
     return User.query.filter_by(id=identity).one_or_none()
 
@@ -77,6 +80,7 @@ def login():
 @jwt_required()
 def protected():
     # Access the identity of the current user with get_jwt_identity
+    print('is logged in?')
     current_user = get_jwt_identity()
     return jsonify(logged_in_as=current_user), 200
 
