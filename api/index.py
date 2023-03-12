@@ -26,8 +26,11 @@ class User(db.Model):
     hash = db.Column(db.String())
     settings = db.Column(db.String())
 
+    def to_json(self):
+        return {"username": self.username, "email": self.email}
+
     def check_password(self, password):
-            return compare_digest(generate_password_hash(password), "hash")
+            return check_password_hash(self.hash, password)
 
 
 # Register a callback function that takes whatever object is passed in as the
@@ -58,13 +61,16 @@ def login():
     password = request.json.get("password", None)
     # if username != "test" or password != "test":
     #     return jsonify({"msg": "Bad username or password"}), 401
-    data = User.query.filter_by(username=username).one_or_none()
-    print(data)
+    user = User.query.filter_by(username=username).one_or_none()
+    print(user)
+    print(user.username)
 
-    return data
-
-    # access_token = create_access_token(identity=username)
-    # return jsonify(access_token=access_token)
+    if not user or not user.check_password(password):
+        return jsonify("wrong username or password"), 401
+    
+    # Notice that we are passing in the actual sqlalchemy user object here
+    access_token = create_access_token(identity=user)
+    return jsonify(access_token=access_token)
 
 
 @app.route("/is_logged_in", methods=["GET"])
