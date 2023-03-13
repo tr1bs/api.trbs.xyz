@@ -114,5 +114,24 @@ def user_settings():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-	return jsonify(access_token=access_token)	
+    if request.method == 'POST':
+        r = request.get_json()
+        user = User.query.filter_by(username=r.username).one_or_none()
+
+        if not user:
+            new_user = User(username=r.username, email=r.email, password=generate_password_hash(r.password))
+            db.session.add(new_user)
+            db.commit()
+            print('added new user...')
+            
+            # Notice that we are passing in the actual sqlalchemy user object here
+            # double check this
+            access_token = create_access_token(identity=new_user)
+            return jsonify(access_token=access_token, username=new_user.username)
+
+        else:
+            return jsonify("user already exists"), 401
+
+
+    return 'notok', 500	
 
