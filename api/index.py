@@ -12,6 +12,10 @@ app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = "super-secret"  # put in envar
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+ACCESS_EXPIRES = timedelta(hours=4)
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = ACCESS_EXPIRES
+
+
 
 jwt = JWTManager(app)
 db = SQLAlchemy(app)
@@ -74,6 +78,16 @@ def login():
     # Notice that we are passing in the actual sqlalchemy user object here
     access_token = create_access_token(identity=user)
     return jsonify(access_token=access_token, username=user.username)
+
+
+@app.route("/logout", methods=["POST"])
+@jwt_required()
+def logout():
+    # create redis store and revoke token here
+    # look into alternatives
+    # remove token client side
+    return jsonify(msg='server side logout complete', success=True)
+
 
 
 @app.route("/is_logged_in", methods=["GET"])
