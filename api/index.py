@@ -2,6 +2,9 @@ from flask import Flask, jsonify, request
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required, JWTManager, verify_jwt_in_request, get_jwt
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy.dialects.postgresql import UUID, JSONB, TIMESTAMP
+from sqlalchemy_json import mutable_json_type
+
 
 import os
 from flask_cors import CORS
@@ -21,6 +24,12 @@ jwt = JWTManager(app)
 db = SQLAlchemy(app)
 CORS(app)
 
+def serialize_datetime(obj):
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError("Type not serializable")
+
+
 class User(db.Model):
     __tablename__ = 'users'
 
@@ -32,6 +41,62 @@ class User(db.Model):
 
     def to_json(self):
         return {"username": self.username, "email": self.email}
+
+    def check_password(self, password):
+            return check_password_hash(self.hash, password)
+
+
+
+class Item(db.Model):
+    __tablename__ = 'items'
+
+    uuid = db.Column(UUID(as_uuid=True), primary_key=True)
+    name = db.Column(db.String())
+    owner = db.Column(db.String())
+    owner_address = db.Column(db.String())
+    brand = db.Column(db.String())
+    colors = db.Column(JSONB)
+    created = db.Column(TIMESTAMP(timezone=False), default=datetime.now())
+    description =  db.Column(db.String())
+    for_sale = db.Column(db.Boolean)
+    img = db.Column(JSONB)
+    materials = db.Column(JSONB)
+    price = db.Column(db.String())
+    reposted = db.Column(JSONB)
+    saved = db.Column(JSONB)
+    season = db.Column(db.String())
+    size = db.Column(db.String())
+    source_url = db.Column(db.String())
+    status = db.Column(db.String())
+    tags = db.Column(JSONB)
+    tribs = db.Column(JSONB)
+    tx = db.Column(JSONB)
+
+
+
+    def as_dict(self):
+        return {
+            "uuid": self.uuid,
+            "name": self.name,
+            "owner": self.owner,
+            "owner_address": self.owner_address,
+            "brand": self.brand,
+            "colors": self.colors,
+            "created": str(self.created),
+            "description": self.description,
+            "for_sale": self.for_sale,
+            "img": self.img,
+            "materials": self.materials,
+            "price": self.price,
+            "reposted": self.reposted,
+            "saved": self.saved,
+            "size": self.size,
+            "source_url": self.source_url,
+            "status": self.status,
+            "tags": self.tags,
+            "tribs": self.tribs,
+            "tx": self.tx,
+        }
 
     def check_password(self, password):
             return check_password_hash(self.hash, password)
@@ -147,5 +212,21 @@ def register():
             return jsonify("user already exists"), 401
 
 
-    return 'notok', 500	
+    return 'notok', 500
+
+
+@app.route('/v1/i/get_all', methods=['GET'])
+def get_all_items():
+    if request.method == 'GET':
+        print('api - fetching items...')
+        # r = db.select_all_items() #can paginate this later
+        r = Item.query.all()
+
+        pkg = []
+        for item in r:
+            print(item.as_dict(), '\n')
+            pkg.append(item.as_dict())
+
+        
+        return jsonify(pkg), 200
 
