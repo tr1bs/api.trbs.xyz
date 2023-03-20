@@ -50,7 +50,7 @@ class User(db.Model):
 class Item(db.Model):
     __tablename__ = 'items'
 
-    uuid = db.Column(UUID(as_uuid=True), primary_key=True)
+    uuid = db.Column(db.String(), primary_key=True)
     name = db.Column(db.String())
     owner = db.Column(db.String())
     owner_address = db.Column(db.String())
@@ -229,4 +229,20 @@ def get_all_items():
 
         
         return jsonify(pkg), 200
+
+
+@app.route('/v1/i/<uuid>', methods=['GET'])
+def get_item(uuid):
+    if request.method == 'GET':
+        print('api - fetching item...')
+        # r = db.select_all_items() #can paginate this later
+        r = Item.query.get(uuid)
+        print(r)
+        # pkg = []
+        # for item in r:
+        #     print(item.as_dict(), '\n')
+        #     pkg.append(item.as_dict())
+
+        
+        return jsonify(r.as_dict()), 200
 
