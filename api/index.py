@@ -282,3 +282,45 @@ def get_item(uuid):
         
         return jsonify(r.as_dict()), 200
 
+
+
+@app.route('/v1/i/add', methods=['GET', 'POST'])
+@login_required
+def add_items():
+
+    if request.method == 'POST':
+        print('api - adding item')
+        r = request.get_json()
+        r['uuid'] = shortuuid.ShortUUID().random(length=16)
+        columns = [*r.keys()]
+        # print(columns)
+
+        new_item = Item(
+                        uuid=r['uuid'],
+                        name=r['name'],
+                        owner=r['owner'],
+                        owner_address=r['owner_address'],
+                        brand=r['brand'],
+                        colors=r['colors'],
+                        created=r['created'],
+                        description=r['description'],
+                        for_sale=r['for_sale'],
+                        img=r['img'],
+                        materials=r['materials'],
+                        price=r['price'],
+                        reposted=r['reposted'],
+                        saved=r['saved'],
+                        size=r['size'],
+                        source_url=r['source_url'],
+                        status=r['status'],
+                        tags=r['tags'],
+                        status=r['status'],
+                        tags=r['tags'],
+                        tribs=r['tribs'],
+                        tx=r['tx']
+                    )
+        db.session.add(new_item)
+        db.commit()
+        # should probably try catch the above
+        return 'added user', 200
+
