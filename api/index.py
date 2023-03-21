@@ -30,6 +30,30 @@ def serialize_datetime(obj):
     raise TypeError("Type not serializable")
 
 
+class Dir(db.Model):
+    __tablename__ = 'dir'
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String())
+    eth_wallet = db.Column(db.String())
+    bio = db.Column(db.String())
+    tribs = db.Column(JSONB)
+    followers = db.Column(JSONB)
+    following = db.Column(JSONB)
+    items = db.Column(JSONB)
+
+    def as_dict(self):
+        return {
+            'username': self.username,
+            'eth_wallet': self.eth_wallet,
+            'bio': self.bio,
+            'tribs': self.tribs,
+            'followers': self.followers,
+            'following': self.following,
+            'items': self.items
+        }
+
+
 class User(db.Model):
     __tablename__ = 'users'
 
@@ -120,6 +144,7 @@ def user_lookup_callback(_jwt_header, jwt_data):
     print(jwt_data)
     identity = jwt_data["sub"]
     return User.query.filter_by(id=identity).one_or_none()
+
 
 @app.route("/", methods=["GET"])
 def healthcheck():
@@ -213,6 +238,17 @@ def register():
 
 
     return 'notok', 500
+
+
+@app.route('/v1/get_user/<username>', methods=['GET'])
+def get_user(username):
+    if request.method == 'GET':
+        print('api - fetching public user...')
+        user = Dir.query.filter_by(username=username).one_or_none()
+        return jsonify(user.as_dict()), 200
+
+
+
 
 
 @app.route('/v1/i/get_all', methods=['GET'])
