@@ -10,6 +10,7 @@ import os
 from flask_cors import CORS
 from datetime import datetime, date, timedelta
 import json
+import shortuuid
 
 app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = "super-secret"  # put in envar
@@ -28,6 +29,33 @@ def serialize_datetime(obj):
     if isinstance(obj, datetime):
         return obj.isoformat()
     raise TypeError("Type not serializable")
+
+
+class History(db.Model):
+    __tablename__ = 'hist'
+    
+    uuid = db.Column(db.String(), primary_key=True)
+    item_id = db.Column(db.String())
+    created = db.Column(TIMESTAMP(timezone=False), default=datetime.now())
+    seller = db.Column(db.String())
+    buyer = db.Column(db.String())
+    seller_address = db.Column(db.String())
+    buyer_address = db.Column(db.String())
+    tx_hash = db.Column(db.String())
+    url = db.Column(db.String())
+
+    def as_dict(self):
+        return {
+            'uuid': self.uuid,
+            'item_id': self.item_id,
+            'created': self.created,
+            'seller': self.seller,
+            'buyer': self.buyer,
+            'seller_address': self.seller_address,
+            'buyer_address': self.buyer_address,
+            'tx_hash': self.tx_hash,
+            'url': self.url
+        }
 
 
 class Dir(db.Model):
@@ -70,7 +98,6 @@ class User(db.Model):
             return check_password_hash(self.hash, password)
 
 
-
 class Item(db.Model):
     __tablename__ = 'items'
 
@@ -82,7 +109,7 @@ class Item(db.Model):
     colors = db.Column(JSONB)
     created = db.Column(TIMESTAMP(timezone=False), default=datetime.now())
     description =  db.Column(db.String())
-    for_sale = db.Column(db.Boolean)
+    for_sale = db.Column(db.Boolean())
     img = db.Column(JSONB)
     materials = db.Column(JSONB)
     price = db.Column(db.String())
@@ -177,7 +204,6 @@ def logout():
     # look into alternatives
     # remove token client side
     return jsonify(msg='server side logout complete', success=True)
-
 
 
 @app.route("/is_logged_in", methods=["GET"])
@@ -284,13 +310,13 @@ def get_item(uuid):
 
 
 
-@app.route('/v1/i/add', methods=['GET', 'POST'])
-@login_required
+@app.route('/v1/i/add', methods=['GET', 'POST']) #make this jwt private
 def add_items():
 
     if request.method == 'POST':
         print('api - adding item')
         r = request.get_json()
+        print(r)
         r['uuid'] = shortuuid.ShortUUID().random(length=16)
         columns = [*r.keys()]
         # print(columns)
@@ -302,9 +328,8 @@ def add_items():
                         owner_address=r['owner_address'],
                         brand=r['brand'],
                         colors=r['colors'],
-                        created=r['created'],
                         description=r['description'],
-                        for_sale=r['for_sale'],
+                        for_sale=True,
                         img=r['img'],
                         materials=r['materials'],
                         price=r['price'],
@@ -312,15 +337,71 @@ def add_items():
                         saved=r['saved'],
                         size=r['size'],
                         source_url=r['source_url'],
-                        status=r['status'],
                         tags=r['tags'],
                         status=r['status'],
-                        tags=r['tags'],
                         tribs=r['tribs'],
                         tx=r['tx']
                     )
         db.session.add(new_item)
-        db.commit()
+        db.session.commit()
+
+        print('api - added item...')
         # should probably try catch the above
         return 'added user', 200
+
+
+@app.route('/v1/i/buy_item', methods=['POST']) # add jwt private
+@jwt_required()
+def buy_item():
+    if request.method == 'POST':
+        print('api - purchasing item.....')
+
+        r = request.get_json()
+        print(r)
+        current_user = get_jwt_identity()
+        print(current_user)
+        user = User.query.filter_by(id=current_user).one_or_none()
+        r['buyer'] = user.username
+        r['uuid'] = shortuuid.ShortUUID().random(length=16)
+
+        new_hist = History(
+                    uuid=r['uuid'],
+                    item_id=r['item_id'],                    
+                    seller=r['seller'],
+                    buyer=r['buyer'],
+                    seller_address=r['seller_address'],
+                    buyer_address=r['buyer_address'],
+                    tx_hash=r['tx_hash'],
+                    url=r['url']                    
+                )
+        db.session.add(new_hist)
+        db.session.commit()
+
+        item = Item.query.get(r['item_id'])
+        item.status = 'FUF'
+        db.session.commit()
+
+        return 'ok', 200
+
+
+@app.route('/v1/add_user_wallet/<username>', methods=['POST']) # add jwt private
+def add_user_wallet(username):
+    if request.method == 'POST':
+        print('api - adding user wallet to public dir...')
+        r = request.get_json()
+        user = Dir.query.filter_by(username=username).one_or_none()
+        user.eth_wallet = r['address']
+        db.session.commit()
+
+        return 'ok', 200
+
+
+
+
+        
+
+
+
+
+
 
