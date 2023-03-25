@@ -396,7 +396,40 @@ def add_user_wallet(username):
         return 'ok', 200
 
 
+app.route('/v1/wish/generate_metadata', methods=['POST'])
+def generate_item_metadata():
+    # in future, have a multiselect but atm ssense
 
+    # use the below in the future to pull the whole schema but atm just chill on the name, price, currency etc
+    user_agents = [ 
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36', 
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36', 
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36', 
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 12_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148', 
+        'Mozilla/5.0 (Linux; Android 11; SM-G960U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.72 Mobile Safari/537.36' 
+    ] 
+    user_agent = random.choice(user_agents)
+    headers = {'User-Agent': user_agent} 
+
+    url = 'https://www.ssense.com/en-us/women/product/see-by-chloe/indigo-flared-emily-jeans/10049711'
+    html = requests.get(url, headers=headers) 
+
+    soup = BeautifulSoup(html.text, 'html.parser')
+    data = json.loads(soup.find('script', type='application/ld+json').text)
+
+    availability = data['offers']['availability'].split('/')[3]
+
+    
+    return jsonify(name=data['name'], 
+                brand=data['brand']['name'], 
+                price=data['offers']['price'], 
+                price_currency=data['offers']['priceCurrency'], 
+                availability=availability,
+                description=data['description'],
+                image=data['image']
+                ), 200
+
+    
 
         
 
