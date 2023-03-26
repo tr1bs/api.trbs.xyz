@@ -31,6 +31,53 @@ def serialize_datetime(obj):
     raise TypeError("Type not serializable")
 
 
+class Message(db.Model):
+    __tablename__ = 'messages'
+
+    uuid    = db.Column(db.String(), primary_key=True)
+    created = db.Column(TIMESTAMP(timezone=False), default=datetime.now())
+    fuf_id  = db.Column(db.String())
+    author  = db.Column(db.String())    
+    text    = db.Column(db.String())
+    type    = db.Column(db.String())
+
+    def as_dict(self):
+        return {
+            'uuid': self.uuid,
+            'fuf_id': self.fuf_id,
+            'author': self.author,
+            'created': self.created,
+            'text': self.text,
+            'type': self.type
+        } 
+
+
+
+class Fufillment(db.Model):
+    __tablename__ = 'fufillment'
+
+    uuid = db.Column(db.String(), primary_key=True)
+    hist_id = db.Column(db.String())
+    created = db.Column(TIMESTAMP(timezone=False), default=datetime.now())
+    seller = db.Column(db.String())
+    buyer = db.Column(db.String())
+    tx_hash = db.Column(db.String())
+    status = db.Column(db.String())
+    url = db.Column(db.String())
+
+    def as_dict(self):
+        return {
+            'uuid': self.uuid,
+            'hist_id': self.hist_id,
+            'created': str(self.created),
+            'seller': self.seller,
+            'buyer': self.buyer,
+            'tx_hash': self.tx_hash,
+            'status': self.status,
+            'url': self.url
+        }
+
+
 class History(db.Model):
     __tablename__ = 'hist'
     
@@ -347,7 +394,7 @@ def add_items():
 
         print('api - added item...')
         # should probably try catch the above
-        return 'added user', 200
+        return 'added item', 200
 
 
 @app.route('/v1/i/buy_item', methods=['POST']) # add jwt private
@@ -379,6 +426,31 @@ def buy_item():
 
         item = Item.query.get(r['item_id'])
         item.status = 'FUF'
+        db.session.commit()
+
+
+        new_fufill = Fufillment(
+                    uuid = shortuuid.ShortUUID().random(length=16),
+                    hist_id = new_hist.uuid,
+                    created = datetime.now(),
+                    seller = new_hist.seller,
+                    buyer = new_hist.buyer,
+                    tx_hash = new_hist.tx_hash,
+                    url = new_hist.url,
+                    status = 'open'                    
+                )
+        db.session.add(new_fufill)
+        db.session.commit()
+
+        new_message = Message(
+                    uuid = shortuuid.ShortUUID().random(length=16),
+                    fuf_id = new_fufill.uuid,
+                    created = datetime.now(),
+                    author = 'admin_bot',
+                    text = 'Hello, here is the escrow channel',
+                    type = 'automated'
+                )
+        db.session.add(new_message)
         db.session.commit()
 
         return 'ok', 200
@@ -429,9 +501,25 @@ def generate_item_metadata():
                 image=data['image']
                 ), 200
 
-    
 
-        
+@app.route('/v1/fufill', methods=['POST'])
+def get_user_fufillment():
+    if request.method == 'POST':
+        r = request.get_json()
+        username = r['username']
+        seller = Fufillment.query.filter_by(seller=username).all()
+        buyer = Fufillment.query.filter_by(buyer=username).all()
+
+        seller = [item.as_dict() for item in seller]
+        buyer = [item.as_dict() for item in buyer]
+
+        # print('seller: ', seller)
+        # print('buyer: ', buyer)
+
+        return jsonify(sell=seller, buy=buyer), 200
+
+    return 'not ok', 500
+
 
 
 
