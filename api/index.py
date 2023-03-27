@@ -11,6 +11,9 @@ from flask_cors import CORS
 from datetime import datetime, date, timedelta
 import json
 import shortuuid
+import random
+import requests
+from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = "super-secret"  # put in envar
@@ -29,6 +32,29 @@ def serialize_datetime(obj):
     if isinstance(obj, datetime):
         return obj.isoformat()
     raise TypeError("Type not serializable")
+
+
+class Wish(db.Model):
+    __tablename__ = 'wishlist'
+
+    uuid    = db.Column(db.String(), primary_key=True)
+    created = db.Column(TIMESTAMP(timezone=False), default=datetime.now())
+    items = db.Column(JSONB)
+    title = db.Column(db.String())
+    creator = db.Column(db.String())
+    public = db.Column(db.Boolean(), default=True)
+    description = db.Column(db.String())
+
+    def as_dict(self):
+        return {
+            'uuid': self.uuid,
+            'creator': self.creator,
+            'created': self.created,
+            'description': self.description,
+            'items': self.items,
+            'title': self.title,
+            'public': self.public,
+        } 
 
 
 class Message(db.Model):
@@ -198,6 +224,43 @@ class Item(db.Model):
 
     def check_password(self, password):
             return check_password_hash(self.hash, password)
+
+
+def generate_item_metadata(ssense_link):
+    # in future, have a multiselect but atm ssense
+
+    # use the below in the future to pull the whole schema but atm just chill on the name, price, currency etc
+    user_agents = [ 
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36', 
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36', 
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36', 
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 12_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148', 
+        'Mozilla/5.0 (Linux; Android 11; SM-G960U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.72 Mobile Safari/537.36' 
+    ] 
+    user_agent = random.choice(user_agents)
+    headers = {'User-Agent': user_agent} 
+
+    url = ssense_link
+    html = requests.get(url, headers=headers) 
+
+    soup = BeautifulSoup(html.text, 'html.parser')
+    data = json.loads(soup.find('script', type='application/ld+json').text)
+
+    availability = data['offers']['availability'].split('/')[3]
+
+    
+    return jsonify(name=data['name'], 
+                brand=data['brand']['name'], 
+                price=data['offers']['price'], 
+                price_currency=data['offers']['priceCurrency'], 
+                availability=availability,
+                description=data['description'],
+                image=data['image']
+                )
+
+
+
+
 
 
 # Register a callback function that takes whatever object is passed in as the
@@ -468,38 +531,38 @@ def add_user_wallet(username):
         return 'ok', 200
 
 
-app.route('/v1/wish/generate_metadata', methods=['POST'])
-def generate_item_metadata():
-    # in future, have a multiselect but atm ssense
+# app.route('/v1/wish/generate_metadata', methods=['POST'])
+# def generate_item_metadata():
+#     # in future, have a multiselect but atm ssense
 
-    # use the below in the future to pull the whole schema but atm just chill on the name, price, currency etc
-    user_agents = [ 
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36', 
-        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36', 
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36', 
-        'Mozilla/5.0 (iPhone; CPU iPhone OS 12_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148', 
-        'Mozilla/5.0 (Linux; Android 11; SM-G960U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.72 Mobile Safari/537.36' 
-    ] 
-    user_agent = random.choice(user_agents)
-    headers = {'User-Agent': user_agent} 
+#     # use the below in the future to pull the whole schema but atm just chill on the name, price, currency etc
+#     user_agents = [ 
+#         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36', 
+#         'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36', 
+#         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36', 
+#         'Mozilla/5.0 (iPhone; CPU iPhone OS 12_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148', 
+#         'Mozilla/5.0 (Linux; Android 11; SM-G960U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.72 Mobile Safari/537.36' 
+#     ] 
+#     user_agent = random.choice(user_agents)
+#     headers = {'User-Agent': user_agent} 
 
-    url = 'https://www.ssense.com/en-us/women/product/see-by-chloe/indigo-flared-emily-jeans/10049711'
-    html = requests.get(url, headers=headers) 
+#     url = 'https://www.ssense.com/en-us/women/product/see-by-chloe/indigo-flared-emily-jeans/10049711'
+#     html = requests.get(url, headers=headers) 
 
-    soup = BeautifulSoup(html.text, 'html.parser')
-    data = json.loads(soup.find('script', type='application/ld+json').text)
+#     soup = BeautifulSoup(html.text, 'html.parser')
+#     data = json.loads(soup.find('script', type='application/ld+json').text)
 
-    availability = data['offers']['availability'].split('/')[3]
+#     availability = data['offers']['availability'].split('/')[3]
 
     
-    return jsonify(name=data['name'], 
-                brand=data['brand']['name'], 
-                price=data['offers']['price'], 
-                price_currency=data['offers']['priceCurrency'], 
-                availability=availability,
-                description=data['description'],
-                image=data['image']
-                ), 200
+#     return jsonify(name=data['name'], 
+#                 brand=data['brand']['name'], 
+#                 price=data['offers']['price'], 
+#                 price_currency=data['offers']['priceCurrency'], 
+#                 availability=availability,
+#                 description=data['description'],
+#                 image=data['image']
+#                 ), 200
 
 
 @app.route('/v1/fufill', methods=['POST'])
@@ -519,6 +582,71 @@ def get_user_fufillment():
         return jsonify(sell=seller, buy=buyer), 200
 
     return 'not ok', 500
+
+
+@app.route('/v1/messages/<escrow_id>', methods=['GET', 'POST'])
+def get_escrow_msg(escrow_id):
+    if request.method == 'GET':
+        messages = Message.query.filter_by(fuf_id=escrow_id).all()
+        messages = [message.as_dict() for message in messages]
+
+        return jsonify(messages=messages), 200
+
+
+
+@app.route('/v1/wish/gen_metadata', methods=['POST'])
+def gen_metadata():
+    if request.method == 'POST':
+        r = request.get_json()
+        link = r['link']
+
+        data_gen = generate_item_metadata(link)
+
+        return data_gen, 200
+
+
+@app.route('/v1/wish/add', methods=['POST'])
+def add_wish():
+    if request.method == 'POST':
+        r = request.get_json()['wish']
+
+        print(r)
+
+        new_wish = Wish(
+                uuid = shortuuid.ShortUUID().random(length=16),
+                created=datetime.now(),
+                creator=r['creator'],
+                description=r['description'],
+                items=r['items'],
+                public=True,
+                title=r['title']               
+            )
+
+        print('adding wish')
+        db.session.add(new_wish)
+
+        print('commit to db')
+        db.session.commit()
+
+        print('added wish')
+
+        return 'ok', 200
+
+
+@app.route('/v1/wish/get_all/<username>', methods=['GET'])
+def get_all_wishlists(username):
+    wishlists = Wish.query.filter_by(creator=username).all()
+    wishlists = [wish.as_dict() for wish in wishlists]
+
+    return jsonify(wishlists=wishlists), 200
+
+
+
+
+
+
+
+
 
 
 
