@@ -34,6 +34,64 @@ def serialize_datetime(obj):
     raise TypeError("Type not serializable")
 
 
+class Posts(db.Model):
+    __tablename__ = 'posts'
+    uuid    = db.Column(db.String(), primary_key=True)
+    created = db.Column(TIMESTAMP(timezone=False), default=datetime.now())
+    published = db.Column(TIMESTAMP(timezone=False))
+    title = db.Column(db.String())
+    text = db.Column(db.String())
+    author = db.Column(db.String())
+    images = db.Column(JSONB)
+    comments = db.Column(JSONB)
+    tags = db.Column(JSONB)
+    saved = db.Column(JSONB)
+    url = db.Column(db.String())
+
+    def as_dict(self):
+        return {
+            'uuid': self.uuid,
+            'created': self.created,
+            'published': self.published,
+            'title': self.title,
+            'text': self.text,
+            'author': self.author,
+            'images': self.images,
+            'comments': self.comments,
+            'tags': self.tags,
+            'saved': self.saved,
+            'url': self.url
+        }
+
+    #ref_created = db.Column(TIMESTAMP(timezone=False), default=datetime.now())
+
+class Brands(db.Model):
+    __tablename__ = 'brands'
+
+    uuid    = db.Column(db.String(), primary_key=True)
+    created = db.Column(TIMESTAMP(timezone=False), default=datetime.now())
+    name = db.Column(db.String())
+    description = db.Column(db.String())
+    founder = db.Column(db.String())
+    founded = db.Column(db.String())
+    logo = db.Column(db.String())
+    items = db.Column(JSONB)
+    saved = db.Column(JSONB)
+    
+
+    def as_dict(self):
+        return {
+            'uuid': self.uuid,
+            'created': self.created,
+            'name': self.name,
+            'description': self.description,
+            'founder': self.founder,
+            'logo': self.logo,
+            'items': self.items,
+            'saved': self.saved
+        } 
+
+
 class Wish(db.Model):
     __tablename__ = 'wishlist'
 
@@ -84,6 +142,7 @@ class Fufillment(db.Model):
 
     uuid = db.Column(db.String(), primary_key=True)
     hist_id = db.Column(db.String())
+    item_id = db.Column(db.String())
     created = db.Column(TIMESTAMP(timezone=False), default=datetime.now())
     seller = db.Column(db.String())
     buyer = db.Column(db.String())
@@ -95,6 +154,7 @@ class Fufillment(db.Model):
         return {
             'uuid': self.uuid,
             'hist_id': self.hist_id,
+            'item_id': self.item_id,
             'created': str(self.created),
             'seller': self.seller,
             'buyer': self.buyer,
@@ -403,6 +463,22 @@ def get_all_items():
         return jsonify(pkg), 200
 
 
+@app.route('/v1/b/get_all', methods=['GET'])
+def get_all_brands():
+    if request.method == 'GET':
+        print('api - fetching brands...')
+        # r = db.select_all_items() #can paginate this later
+        r = Brands.query.all()
+
+        pkg = []
+        for brand in r:
+            print(brand.as_dict(), '\n')
+            pkg.append(brand.as_dict())
+
+        
+        return jsonify(pkg), 200
+
+
 @app.route('/v1/i/<uuid>', methods=['GET'])
 def get_item(uuid):
     if request.method == 'GET':
@@ -417,6 +493,70 @@ def get_item(uuid):
 
         
         return jsonify(r.as_dict()), 200
+
+
+@app.route('/v1/b/<uuid>', methods=['GET'])
+def get_brand(uuid):
+    if request.method == 'GET':
+        print('api - fetching item...')
+        # r = db.select_all_items() #can paginate this later
+        r = Brands.query.get(uuid)
+        print(r)
+        # pkg = []
+        # for item in r:
+        #     print(item.as_dict(), '\n')
+        #     pkg.append(item.as_dict())
+
+        
+        return jsonify(r.as_dict()), 200
+
+
+@app.route('/v1/p/all', methods=['GET'])
+def get_all_posts():
+    if request.method == 'GET':
+        print('api - fetching post...')
+        # r = db.select_all_items() #can paginate this later
+        r = Posts.query.all()
+        posts = [post.as_dict() for post in r]
+        # pkg = []
+        # for item in r:
+        #     print(item.as_dict(), '\n')
+        #     pkg.append(item.as_dict())
+
+        
+        return jsonify(posts=posts), 200
+
+
+@app.route('/v1/p/<uuid>', methods=['GET'])
+def get_post(uuid):
+    if request.method == 'GET':
+        print('api - fetching post...')
+        # r = db.select_all_items() #can paginate this later
+        r = Posts.query.get(uuid)
+        print(r)
+        # pkg = []
+        # for item in r:
+        #     print(item.as_dict(), '\n')
+        #     pkg.append(item.as_dict())
+
+        
+        return jsonify(r.as_dict()), 200
+
+
+@app.route('/v1/p/u/<username>', methods=['GET'])
+def get_user_posts(username):
+    if request.method == 'GET':
+        print('api - fetching user posts...')
+        # r = db.select_all_items() #can paginate this later
+        r = Posts.query.filter_by(author=username).all()
+        print(r)
+        # pkg = []
+        # for item in r:
+        #     print(item.as_dict(), '\n')
+        #     pkg.append(item.as_dict())
+
+        
+        return jsonify(r.as_dict()), 200          
 
 
 
@@ -460,6 +600,64 @@ def add_items():
         return 'added item', 200
 
 
+@app.route('/v1/b/add', methods=['GET', 'POST']) #make this jwt private
+def add_brand():
+
+    if request.method == 'POST':
+        print('api - adding brand')
+        r = request.get_json()
+        print(r)
+        r['uuid'] = shortuuid.ShortUUID().random(length=16)
+        columns = [*r.keys()]
+        # print(columns)
+
+        new_item = Brands(
+                        uuid=shortuuid.ShortUUID().random(length=16),
+                        name=r['name'],
+                        description=r['description'],
+                        founder=r['founder'],
+                        founded=r['founded'],
+                        logo=r['logo'],                        
+                        saved=r['saved'],
+                        items=r['items']
+                    )
+        db.session.add(new_item)
+        db.session.commit()
+
+        print('api - added brand...')
+        # should probably try catch the above
+        return 'added brand', 200
+
+
+@app.route('/v1/p/add', methods=['GET', 'POST']) #make this jwt private
+def add_post():
+
+    if request.method == 'POST':
+        print('api - adding post')
+        r = request.get_json()
+        print(r)
+
+        new_post = Posts(
+                        uuid=shortuuid.ShortUUID().random(length=16),
+                        title=r['title'],
+                        images=r['images'],
+                        text=r['text'],
+                        url=r['url'],
+                        author=r['author'],
+                        comments=r['comments'],
+                        tags=r['tags'],
+                        saved=r['saved'],
+                    )
+        db.session.add(new_post)
+        db.session.commit()
+
+        # add user entropy here
+
+        print('api - added post...')
+        # should probably try catch the above
+        return 'added post', 200
+
+
 @app.route('/v1/i/buy_item', methods=['POST']) # add jwt private
 @jwt_required()
 def buy_item():
@@ -495,6 +693,7 @@ def buy_item():
         new_fufill = Fufillment(
                     uuid = shortuuid.ShortUUID().random(length=16),
                     hist_id = new_hist.uuid,
+                    item_id = r['item_id'],
                     created = datetime.now(),
                     seller = new_hist.seller,
                     buyer = new_hist.buyer,
@@ -576,8 +775,8 @@ def get_user_fufillment():
         seller = [item.as_dict() for item in seller]
         buyer = [item.as_dict() for item in buyer]
 
-        # print('seller: ', seller)
-        # print('buyer: ', buyer)
+        print('seller: ', seller)
+        print('buyer: ', buyer)
 
         return jsonify(sell=seller, buy=buyer), 200
 
@@ -591,6 +790,27 @@ def get_escrow_msg(escrow_id):
         messages = [message.as_dict() for message in messages]
 
         return jsonify(messages=messages), 200
+
+
+@app.route('/v1/messages/add', methods=['POST'])
+def post_escrow_msg():
+    # make sure user is logged in
+    if request.method == 'POST':
+        r = request.get_json()
+
+        new_message = Message(
+                    uuid = shortuuid.ShortUUID().random(length=16),
+                    fuf_id = r['fuf_id'],
+                    created = datetime.now(),
+                    author = r['author'],
+                    text = r['text'],
+                    type = 'p2p'
+                )
+        db.session.add(new_message)
+        db.session.commit()
+
+        return 'ok', 200
+
 
 
 
