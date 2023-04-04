@@ -34,6 +34,27 @@ def serialize_datetime(obj):
     raise TypeError("Type not serializable")
 
 
+class Activity(db.Model):
+    __tablename__ = 'activity'
+
+    uuid    = db.Column(db.String(), primary_key=True)
+    created = db.Column(TIMESTAMP(timezone=False), default=datetime.now())
+    affected_id = db.Column(db.String())
+    type = db.Column(db.String())
+    action = db.Column(db.String())
+    user = db.Column(db.String())
+
+    def as_dict(self):
+        return {
+            'uuid': self.uuid,
+            'created': self.created,
+            'affected_id': self.affected_id,
+            'type': self.type,
+            'action': self.action,
+            'user': self.user,
+        } 
+
+
 class Posts(db.Model):
     __tablename__ = 'posts'
     uuid    = db.Column(db.String(), primary_key=True)
@@ -597,6 +618,30 @@ def add_items():
 
         print('api - added item...')
         # should probably try catch the above
+
+        metadata = {
+            'img': r['img']['urls'][0],
+            'name': r['name'],
+            'brand': r['brand']
+        }
+
+        new_activity_item = Activity(
+                uuid=shortuuid.ShortUUID().random(length=16),
+                created=datetime.now(),
+                affected_id=r['uuid'],
+                type='item',
+                action='created',
+                metadata=metadata,
+                username=r['owner']
+            )
+
+        db.session.add(new_activity_item)
+        db.session.commit()
+
+        print('api - added item activity...')
+
+
+
         return 'added item', 200
 
 
@@ -612,20 +657,42 @@ def add_brand():
         # print(columns)
 
         new_item = Brands(
-                        uuid=shortuuid.ShortUUID().random(length=16),
+                        uuid=r['uuid'],
                         name=r['name'],
                         description=r['description'],
                         founder=r['founder'],
                         founded=r['founded'],
                         logo=r['logo'],                        
                         saved=r['saved'],
-                        items=r['items']
+                        items=r['items'],
+                        author=r['author']
                     )
         db.session.add(new_item)
         db.session.commit()
 
         print('api - added brand...')
         # should probably try catch the above
+
+        metadata = {
+            'logo': r['logo'],
+            'name': r['name']
+        }
+
+        new_activity_brand = Activity(
+                uuid=shortuuid.ShortUUID().random(length=16),
+                created=datetime.now(),
+                affected_id=r['uuid'],
+                type='brand',
+                action='created',
+                metadata=metadata,
+                username=r['author']
+            )
+
+        db.session.add(new_activity_brand)
+        db.session.commit()
+        print('api - added brand activity...')
+
+
         return 'added brand', 200
 
 
@@ -651,9 +718,30 @@ def add_post():
         db.session.add(new_post)
         db.session.commit()
 
+        print('api - added post...')
+
+        metadata = {
+            'images': r['images']['urls'][0],
+            'title': r['title']
+        }
+
+        new_activity_post = Activity(
+                uuid=shortuuid.ShortUUID().random(length=16),
+                created=datetime.now(),
+                affected_id=new_post.uuid,
+                type='post',
+                action='created',
+                metadata=metadata,
+                username=r['author']
+            )
+
+        db.session.add(new_activity_post)
+        db.session.commit()
+        print('api - added post activity...')
+
         # add user entropy here
 
-        print('api - added post...')
+        
         # should probably try catch the above
         return 'added post', 200
 
@@ -808,6 +896,26 @@ def post_escrow_msg():
                 )
         db.session.add(new_message)
         db.session.commit()
+
+
+        metadata = {
+            'id': new_message.uuid,
+            'fuf_id': r['fuf_id']
+        }
+
+        new_activity_escrow = Activity(
+                uuid=shortuuid.ShortUUID().random(length=16),
+                created=datetime.now(),
+                affected_id=new_post.uuid,
+                type='escrow',
+                action='created',
+                metadata=metadata,
+                username=r['author']
+            )
+
+        db.session.add(new_activity_escrow)
+        db.session.commit()
+        print('api - added escrow activity...')
 
         return 'ok', 200
 
